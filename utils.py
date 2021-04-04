@@ -18,6 +18,7 @@ def paired_product(new_im):
 
     return (H_img, V_img, D1_img, D2_img)
 
+
 def gen_gauss_window(lw, sigma):
     sd = np.float32(sigma)
     lw = int(lw)
@@ -42,16 +43,15 @@ def estimateggdparam(vec):
     sigma_sq = np.mean(vec**2) #-(np.mean(vec))**2
     sigma = np.sqrt(sigma_sq)
     E = np.mean(np.abs(vec))
-    rho = sigma_sq/(E**2+1e-6)
-    array_position =(np.abs(rho - r_gam)).argmin()
+    rho = sigma_sq / (E**2 + 1e-6)
+    array_position = (np.abs(rho - r_gam)).argmin()
     alphaparam = gam[array_position]
-    return alphaparam,sigma
-
+    return alphaparam, sigma
 
 
 def compute_image_mscn_transform(image, C=1, avg_window=None, extend_mode='constant'):
     if avg_window is None:
-      avg_window = gen_gauss_window(3, 7.0/6.0)
+        avg_window = gen_gauss_window(3, 7.0/6.0)
     assert len(np.shape(image)) == 2
     h, w = np.shape(image)
     mu_image = np.zeros((h, w), dtype=np.float32)
@@ -63,6 +63,7 @@ def compute_image_mscn_transform(image, C=1, avg_window=None, extend_mode='const
     scipy.ndimage.correlate1d(var_image, avg_window, 1, var_image, mode=extend_mode)
     var_image = np.sqrt(np.abs(var_image - mu_image**2))
     return (image - mu_image)/(var_image + C)
+
 
 def extract_subband_feats(mscncoefs):
     # alpha_m,  = extract_ggd_features(mscncoefs)
@@ -80,12 +81,13 @@ def extract_subband_feats(mscncoefs):
             alpha4, N4, lsq4**2, rsq4**2,  # (D2)
     ])
 
+
 def aggd_features(imdata):
-    #flatten imdata
+    # Flatten imdata
     imdata.shape = (len(imdata.flat),)
     imdata2 = imdata*imdata
-    left_data = imdata2[imdata<0]
-    right_data = imdata2[imdata>=0]
+    left_data = imdata2[imdata < 0]
+    right_data = imdata2[imdata >= 0]
     left_mean_sqrt = 0
     right_mean_sqrt = 0
     if len(left_data) > 0:
@@ -94,20 +96,19 @@ def aggd_features(imdata):
         right_mean_sqrt = np.sqrt(np.average(right_data))
 
     if right_mean_sqrt != 0:
-      gamma_hat = left_mean_sqrt/right_mean_sqrt
+        gamma_hat = left_mean_sqrt/right_mean_sqrt
     else:
-      gamma_hat = np.inf
-    #solve r-hat norm
+        gamma_hat = np.inf
 
+    # Solve r-hat norm
     imdata2_mean = np.mean(imdata2)
     if imdata2_mean != 0:
-      r_hat = (np.average(np.abs(imdata))**2) / (np.average(imdata2))
+        r_hat = (np.average(np.abs(imdata))**2) / (np.average(imdata2))
     else:
-      r_hat = np.inf
+        r_hat = np.inf
     rhat_norm = r_hat * (((math.pow(gamma_hat, 3) + 1)*(gamma_hat + 1)) / math.pow(math.pow(gamma_hat, 2) + 1, 2))
 
-    win = np.array(gen_gauss_window(3, 7.0/6.0))
-
+    # win = np.array(gen_gauss_window(3, 7.0/6.0))
 
     gamma_range = np.arange(0.2, 10, 0.001)
     a = scipy.special.gamma(2.0/gamma_range)
@@ -116,8 +117,8 @@ def aggd_features(imdata):
     c = scipy.special.gamma(3.0/gamma_range)
     prec_gammas = a/(b*c)
 
-    #solve alpha by guessing values that minimize ro
-    pos = np.argmin((prec_gammas - rhat_norm)**2);
+    # solve alpha by guessing values that minimize ro
+    pos = np.argmin((prec_gammas - rhat_norm)**2)
     alpha = gamma_range[pos]
 
     gam1 = scipy.special.gamma(1.0/alpha)
@@ -128,7 +129,6 @@ def aggd_features(imdata):
     bl = aggdratio * left_mean_sqrt
     br = aggdratio * right_mean_sqrt
 
-    #mean parameter
-    N = (br - bl)*(gam2 / gam1)#*aggdratio
+    # Mean parameter
+    N = (br - bl)*(gam2 / gam1) #*aggdratio
     return (alpha, N, bl, br, left_mean_sqrt, right_mean_sqrt)
-
