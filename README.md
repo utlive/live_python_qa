@@ -1,3 +1,2 @@
-# live_python_qa
-
-Repository for Python releases of IQA and VQA algorithms.
+# LIVE Python QA
+This repository contains official Python releases of popular IQA and VQA algorithms developed at LIVE.
