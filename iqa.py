@@ -1,4 +1,6 @@
-from .utils import compute_image_mscn_transform, extract_subband_feats, moments
+from .utils import compute_image_mscn_transform, extract_subband_feats
+from .utils import moments
+from .utils import vif_channel_est, vif_gsm_model
 import cv2
 import numpy as np
 
@@ -82,3 +84,66 @@ def vif_spatial(img_ref, img_dist, k=11, max_val=1, sigma_nsq=0.1, padding=None)
 
     vif_val = np.sum(np.log(1 + g**2 * var_x / (sv_sq + sigma_nsq)) + 1e-4)/np.sum(np.log(1 + var_x / sigma_nsq) + 1e-4)
     return vif_val
+
+
+def vif(img_ref, img_dist, wavelet='steerable'):
+    M = 3
+    sigma_nsq = 0.1
+
+    if wavelet == 'steerable':
+        from pyrtools.pyramids import SteerablePyramidSpace as SPyr
+        pyr_ref = SPyr(img_ref, 4, 5, 'reflect1').pyr_coeffs
+        pyr_dist = SPyr(img_dist, 4, 5, 'reflect1').pyr_coeffs
+        subband_keys = []
+        for key in list(pyr_ref.keys())[1:-2:3]:
+            subband_keys.append(key)
+    else:
+        import pywt
+        from pywt import wavedec2
+        assert wavelet in pywt.wavelist(kind='discrete'), 'Invalid choice of wavelet'
+        ret_ref = wavedec2(img_ref, wavelet, 'reflect', 4)
+        ret_dist = wavedec2(img_dist, wavelet, 'reflect', 4)
+        pyr_ref = {}
+        pyr_dist = {}
+        subband_keys = []
+        for i in range(4):
+            pyr_ref[(3-i, 0)] = ret_ref[i+1][0]
+            pyr_ref[(3-i, 1)] = ret_ref[i+1][1]
+            pyr_dist[(3-i, 0)] = ret_dist[i+1][0]
+            pyr_dist[(3-i, 1)] = ret_dist[i+1][1]
+            subband_keys.append((3-i, 0))
+            subband_keys.append((3-i, 1))
+        pyr_ref[4] = ret_ref[0]
+        pyr_dist[4] = ret_dist[0]
+
+    subband_keys.reverse()
+    n_subbands = len(subband_keys)
+
+    [g_all, sigma_vsq_all] = vif_channel_est(pyr_ref, pyr_dist, subband_keys, M)
+
+    [s_all, lamda_all] = vif_gsm_model(pyr_ref, subband_keys, M)
+
+    nums = np.zeros((n_subbands,))
+    dens = np.zeros((n_subbands,))
+    for i in range(n_subbands):
+        g = g_all[i]
+        sigma_vsq = sigma_vsq_all[i]
+        s = s_all[i]
+        lamda = lamda_all[i]
+
+        n_eigs = len(lamda)
+
+        lev = int(np.ceil((i+1)/2))
+        winsize = 2**lev + 1
+        offset = (winsize - 1)/2
+        offset = int(np.ceil(offset/M))
+
+        g = g[offset:-offset, offset:-offset]
+        sigma_vsq = sigma_vsq[offset:-offset, offset:-offset]
+        s = s[offset:-offset, offset:-offset]
+
+        for j in range(n_eigs):
+            nums[i] += np.mean(np.log(1 + g*g*s*lamda[j]/(sigma_vsq+sigma_nsq)))
+            dens[i] += np.mean(np.log(1 + s*lamda[j]/sigma_nsq))
+
+    return np.mean(nums)/np.mean(dens)

@@ -178,6 +178,86 @@ def moments(x, y, k, stride, padding=None):
 
     # If either variance was negative, it has been set to zero.
     # So, the correponding covariance should also be zero.
-    cov_xy[mask_x + mask_y] = 0
+    cov_xy[mask_x | mask_y] = 0
 
     return (mu_x, mu_y, var_x, var_y, cov_xy)
+
+
+def im2col(img, k, stride=1):
+    # Parameters
+    m, n = img.shape
+    s0, s1 = img.strides
+    nrows = m - k + 1
+    ncols = n - k + 1
+    shape = (k, k, nrows, ncols)
+    arr_stride = (s0, s1, s0, s1)
+
+    ret = np.lib.stride_tricks.as_strided(img, shape=shape, strides=arr_stride)
+    return ret[:, :, ::stride, ::stride].reshape(k*k, -1)
+  
+
+def vif_gsm_model(pyr, subband_keys, M):
+    tol = 1e-15
+    s_all = []
+    lamda_all = []
+
+    for subband_key in subband_keys:
+        y = pyr[subband_key]
+        y_size = (int(y.shape[0]/M)*M, int(y.shape[1]/M)*M)
+        y = y[:y_size[0], :y_size[1]]
+
+        y_vecs = im2col(y, M, 1)
+        cov = np.cov(y_vecs)
+        lamda, V = np.linalg.eigh(cov)
+        lamda[lamda < tol] = tol
+        cov = V@np.diag(lamda)@V.T
+
+        y_vecs = im2col(y, M, M)
+
+        s = np.linalg.inv(cov)@y_vecs
+        s = np.sum(s * y_vecs, 0)/(M*M)
+        s = s.reshape((int(y_size[0]/M), int(y_size[1]/M)))
+
+        s_all.append(s)
+        lamda_all.append(lamda)
+
+    return s_all, lamda_all
+
+
+def vif_channel_est(pyr_ref, pyr_dist, subband_keys, M):
+    tol = 1e-15
+    g_all = []
+    sigma_vsq_all = []
+
+    for i, subband_key in enumerate(subband_keys):
+        y_ref = pyr_ref[subband_key]
+        y_dist = pyr_dist[subband_key]
+
+        lev = int(np.ceil((i+1)/2))
+        winsize = 2**lev + 1
+
+        y_size = (int(y_ref.shape[0]/M)*M, int(y_ref.shape[1]/M)*M)
+        y_ref = y_ref[:y_size[0], :y_size[1]]
+        y_dist = y_dist[:y_size[0], :y_size[1]]
+
+        _, _, var_x, var_y, cov_xy = moments(y_ref, y_dist, winsize, M)
+
+        g = cov_xy / (var_x + tol)
+        sigma_vsq = var_y - g*cov_xy
+
+        g[var_x < tol] = 0
+        sigma_vsq[var_x < tol] = var_y[var_x < tol]
+        var_x[var_x < tol] = 0
+
+        g[var_y < tol] = 0
+        sigma_vsq[var_y < tol] = 0
+
+        sigma_vsq[g < 0] = var_y[g < 0]
+        g[g < 0] = 0
+
+        sigma_vsq[sigma_vsq < tol] = tol
+
+        g_all.append(g)
+        sigma_vsq_all.append(sigma_vsq)
+
+    return g_all, sigma_vsq_all
