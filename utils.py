@@ -40,7 +40,7 @@ def estimateggdparam(vec):
     gam = np.asarray([x / 1000.0 for x in range(200, 10000, 1)])
     r_gam = (gamma(1.0/gam)*gamma(3.0/gam))/((gamma(2.0/gam))**2)
     # print(np.mean(vec))
-    sigma_sq = np.mean(vec**2) #-(np.mean(vec))**2
+    sigma_sq = np.mean(vec**2)  #-(np.mean(vec))**2
     sigma = np.sqrt(sigma_sq)
     E = np.mean(np.abs(vec))
     rho = sigma_sq / (E**2 + 1e-6)
@@ -130,7 +130,7 @@ def aggd_features(imdata):
     br = aggdratio * right_mean_sqrt
 
     # Mean parameter
-    N = (br - bl)*(gam2 / gam1) #*aggdratio
+    N = (br - bl)*(gam2 / gam1)  #*aggdratio
     return (alpha, N, bl, br, left_mean_sqrt, right_mean_sqrt)
 
 
@@ -194,73 +194,7 @@ def im2col(img, k, stride=1):
 
     ret = np.lib.stride_tricks.as_strided(img, shape=shape, strides=arr_stride)
     return ret[:, :, ::stride, ::stride].reshape(k*k, -1)
-  
 
-def vif_gsm_model(pyr, subband_keys, M):
-    tol = 1e-15
-    s_all = []
-    lamda_all = []
-
-    for subband_key in subband_keys:
-        y = pyr[subband_key]
-        y_size = (int(y.shape[0]/M)*M, int(y.shape[1]/M)*M)
-        y = y[:y_size[0], :y_size[1]]
-
-        y_vecs = im2col(y, M, 1)
-        cov = np.cov(y_vecs)
-        lamda, V = np.linalg.eigh(cov)
-        lamda[lamda < tol] = tol
-        cov = V@np.diag(lamda)@V.T
-
-        y_vecs = im2col(y, M, M)
-
-        s = np.linalg.inv(cov)@y_vecs
-        s = np.sum(s * y_vecs, 0)/(M*M)
-        s = s.reshape((int(y_size[0]/M), int(y_size[1]/M)))
-
-        s_all.append(s)
-        lamda_all.append(lamda)
-
-    return s_all, lamda_all
-
-
-def vif_channel_est(pyr_ref, pyr_dist, subband_keys, M):
-    tol = 1e-15
-    g_all = []
-    sigma_vsq_all = []
-
-    for i, subband_key in enumerate(subband_keys):
-        y_ref = pyr_ref[subband_key]
-        y_dist = pyr_dist[subband_key]
-
-        lev = int(np.ceil((i+1)/2))
-        winsize = 2**lev + 1
-
-        y_size = (int(y_ref.shape[0]/M)*M, int(y_ref.shape[1]/M)*M)
-        y_ref = y_ref[:y_size[0], :y_size[1]]
-        y_dist = y_dist[:y_size[0], :y_size[1]]
-
-        _, _, var_x, var_y, cov_xy = moments(y_ref, y_dist, winsize, M)
-
-        g = cov_xy / (var_x + tol)
-        sigma_vsq = var_y - g*cov_xy
-
-        g[var_x < tol] = 0
-        sigma_vsq[var_x < tol] = var_y[var_x < tol]
-        var_x[var_x < tol] = 0
-
-        g[var_y < tol] = 0
-        sigma_vsq[var_y < tol] = 0
-
-        sigma_vsq[g < 0] = var_y[g < 0]
-        g[g < 0] = 0
-
-        sigma_vsq[sigma_vsq < tol] = tol
-
-        g_all.append(g)
-        sigma_vsq_all.append(sigma_vsq)
-
-    return g_all, sigma_vsq_all
 
 def extract_on_patches(img, blocksizerow, blocksizecol):
     h, w = img.shape
@@ -273,7 +207,7 @@ def extract_on_patches(img, blocksizerow, blocksizecol):
             patches.append(patch)
 
     patches = np.array(patches)
-    
+
     patch_features = []
     for p in patches:
         p_brisque_features = extract_subband_feats(p)
