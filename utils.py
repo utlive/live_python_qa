@@ -276,8 +276,8 @@ def extract_on_patches(img, blocksizerow, blocksizecol):
     
     patch_features = []
     for p in patches:
-        mscn_features, pp_features = _extract_subband_feats(p)
-        patch_features.append(np.hstack((mscn_features, pp_features)))
+        p_brisque_features = extract_subband_feats(p)
+        patch_features.append(p_brisque_features)
     patch_features = np.array(patch_features)
 
     return patch_features

@@ -4,7 +4,8 @@ from .utils import moments
 from .utils import vif_channel_est, vif_gsm_model
 import cv2
 import numpy as np
-
+import scipy.io
+import os.path
 
 # TODO: Compare with Matlab
 def brisque(image):
@@ -154,8 +155,8 @@ def niqe(img):
     blocksizecol = 96
     h, w = img.shape
 
-    module_path = dirname(__file__)
-    params = scipy.io.loadmat(join(module_path, 'niqe_nss_parameters.mat'))
+    module_path = os.path.dirname(__file__)
+    params = scipy.io.loadmat(os.path.join(module_path, 'niqe_nss_parameters.mat'))
     mu_prisparam = params['mu_prisparam']
     cov_prisparam = params['cov_prisparam']
     if (h < blocksizerow) or (w < blocksizecol):
@@ -179,10 +180,10 @@ def niqe(img):
 
     img2 = cv2.resize(img, (height,width), interpolation=cv2.INTER_CUBIC)
 
-    mscn1, var, mu = compute_image_mscn_transform(img, extend_mode='nearest')
+    mscn1= compute_image_mscn_transform(img, extend_mode='nearest')
     mscn1 = mscn1.astype(np.float32)
 
-    mscn2, _, _ = compute_image_mscn_transform(img2, extend_mode='nearest')
+    mscn2 = compute_image_mscn_transform(img2, extend_mode='nearest')
     mscn2 = mscn2.astype(np.float32)
 
     feats_lvl1 = extract_on_patches(mscn1, blocksizerow, blocksizecol)
