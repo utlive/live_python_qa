@@ -261,3 +261,23 @@ def vif_channel_est(pyr_ref, pyr_dist, subband_keys, M):
         sigma_vsq_all.append(sigma_vsq)
 
     return g_all, sigma_vsq_all
+
+def extract_on_patches(img, blocksizerow, blocksizecol):
+    h, w = img.shape
+    blocksizerow = np.int(blocksizerow)
+    blocksizecol = np.int(blocksizecol)
+    patches = []
+    for j in range(0, np.int(h-blocksizerow+1), np.int(blocksizerow)):
+        for i in range(0, np.int(w-blocksizecol+1), np.int(blocksizecol)):
+            patch = img[j:j+blocksizerow, i:i+blocksizecol]
+            patches.append(patch)
+
+    patches = np.array(patches)
+    
+    patch_features = []
+    for p in patches:
+        mscn_features, pp_features = _extract_subband_feats(p)
+        patch_features.append(np.hstack((mscn_features, pp_features)))
+    patch_features = np.array(patch_features)
+
+    return patch_features
