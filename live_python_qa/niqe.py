@@ -1,4 +1,3 @@
-
 from .utils import compute_image_mscn_transform, extract_on_patches
 
 import numpy as np
@@ -13,7 +12,7 @@ def niqe(img):
     h, w = img.shape
 
     module_path = os.path.dirname(__file__)
-    params = scipy.io.loadmat(os.path.join(module_path, 'niqe_nss_parameters.mat'))
+    params = scipy.io.loadmat(os.path.join(os.path.abspath(os.path.join(module_path, '..', 'data')), 'niqe_nss_parameters.mat'))
     mu_prisparam = params['mu_prisparam']
     cov_prisparam = params['cov_prisparam']
     if (h < blocksizerow) or (w < blocksizecol):
