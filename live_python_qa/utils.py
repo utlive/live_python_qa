@@ -41,12 +41,12 @@ def estimateggdparam(vec):
     r_gam = (gamma(1.0/gam)*gamma(3.0/gam))/((gamma(2.0/gam))**2)
     # print(np.mean(vec))
     sigma_sq = np.mean(vec**2)  #-(np.mean(vec))**2
-    sigma = np.sqrt(sigma_sq)
+    #sigma = np.sqrt(sigma_sq)
     E = np.mean(np.abs(vec))
     rho = sigma_sq / (E**2 + 1e-6)
     array_position = (np.abs(rho - r_gam)).argmin()
     alphaparam = gam[array_position]
-    return alphaparam, sigma
+    return alphaparam, sigma_sq
 
 
 def compute_image_mscn_transform(image, C=1, avg_window=None, extend_mode='constant'):
